@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import type { Career, Evidence } from "./data";
 import { extractPdfText } from "./pdf";
 
@@ -35,8 +35,10 @@ export default function CvReview({ careers, evidence }: { careers: Career[]; evi
   const [review, setReview] = useState<AiReview | null>(null);
   const [reviewError, setReviewError] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  const reviewDialogRef = useRef<HTMLDialogElement>(null);
 
   function clearReview() {
+    reviewDialogRef.current?.close();
     setAnalyzed(false);
     setReview(null);
     setReviewError("");
@@ -46,7 +48,6 @@ export default function CvReview({ careers, evidence }: { careers: Career[]; evi
     if (!cv.trim()) return;
     setReviewing(true);
     setReviewError("");
-    setReview(null);
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/cv/review`, {
         method: "POST",
@@ -61,6 +62,7 @@ export default function CvReview({ careers, evidence }: { careers: Career[]; evi
       if (!response.ok) throw new Error(apiError(body, "Không thể nhận góp ý AI lúc này."));
       setReview(body as AiReview);
       setAnalyzed(true);
+      reviewDialogRef.current?.showModal();
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "Không thể kết nối tới dịch vụ góp ý CV.");
     } finally {
@@ -128,17 +130,28 @@ export default function CvReview({ careers, evidence }: { careers: Career[]; evi
         <button type="button" className="ws-button dark" disabled={!cv.trim() || readingFile || reviewing} onClick={requestReview}>{reviewing ? "Đang nhận góp ý AI..." : "Xem gợi ý cải thiện ↗"}</button>
         {reviewError && <p className="ws-file-error" role="alert">{reviewError}</p>}
       </section>
-      <section className="ws-panel ws-review-panel">
+      <section className={analyzed ? "ws-panel ws-review-panel has-result" : "ws-panel ws-review-panel"} aria-label="Kết quả góp ý CV">
         <p className="ws-eyebrow">GỢI Ý CHO {target.toUpperCase()}</p>
-        {analyzed ? <>
-          <h2>Nhìn lại CV của bạn</h2>
+        {analyzed ? <div className="ws-review-ready"><span aria-hidden="true">✓</span><h2>Gợi ý CV đã sẵn sàng</h2><p>Xem các mục cần làm rõ, kỹ năng liên quan và góp ý từ CARIO AI.</p><button type="button" className="ws-button dark" onClick={() => reviewDialogRef.current?.showModal()}>Xem chi tiết góp ý ↗</button></div> : <div className="ws-review-placeholder"><span aria-hidden="true">▤</span><h2>Gợi ý sẽ hiện ở đây</h2><p>Tải PDF hoặc dán nội dung CV, rồi chọn “Xem gợi ý cải thiện”.</p></div>}
+      </section>
+    </div>
+    <dialog className="ws-cv-review-dialog" ref={reviewDialogRef} aria-labelledby="ws-cv-review-title" onClick={(event) => { if (event.target === event.currentTarget) reviewDialogRef.current?.close(); }}>
+      {analyzed && <><div className="ws-cv-review-dialog-top"><p className="ws-eyebrow">GỢI Ý CHO {target.toUpperCase()}</p><button type="button" aria-label="Đóng góp ý CV" onClick={() => reviewDialogRef.current?.close()}>×</button></div><div className="ws-cv-review-dialog-body">
+          <h2 id="ws-cv-review-title">Nhìn lại CV của bạn</h2>
           <div className="ws-check-list">{checks.map((check) => <div key={check.label} className={check.found ? "pass" : "needs-work"}><span aria-hidden="true">{check.found ? "✓" : "!"}</span><div><strong>{check.label}</strong><p>{check.found ? "Đã tìm thấy nội dung liên quan." : check.action}</p></div></div>)}</div>
           <div className="ws-role-check"><h3>Đối chiếu với {target}</h3><p>Đã nhắc đến: {presentSkills.join(" · ") || "Chưa có kỹ năng gợi ý nào"}</p><p>Nên xem xét bổ sung: {unmentionedSkills.join(" · ") || "Đã nhắc đến các kỹ năng gợi ý"}</p><small>Việc chưa nhắc đến một kỹ năng trong CV không có nghĩa là bạn chưa có kỹ năng đó.</small></div>
           <div className="ws-review-summary"><strong>{proven.length ? `${proven.length} kỹ năng trong CV có bằng chứng ở hồ sơ` : "Chưa tìm thấy kỹ năng trùng với bằng chứng trong hồ sơ"}</strong><p>{proven.length ? proven.map((item) => item.skill).join(" · ") : "Hãy thêm sản phẩm hoặc dự án để chứng minh kỹ năng đã nêu."}</p><Link className="ws-link" href="/workspace/portfolio">Mở hồ sơ năng lực →</Link></div>
-          {review && <div className="ws-review-summary"><h3>Góp ý từ CARIO AI</h3><p>{review.summary}</p>{review.strengths.length > 0 && <><strong>Điểm đang làm tốt</strong><p>{review.strengths.join(" · ")}</p></>}{review.missing_or_unclear.length > 0 && <><strong>Điểm cần làm rõ</strong><p>{review.missing_or_unclear.join(" · ")}</p></>}{review.suggestions.length > 0 && <div className="ws-check-list">{review.suggestions.map((suggestion, index) => <div className="needs-work" key={`${suggestion.title}-${index}`}><span aria-hidden="true">!</span><div><strong>{suggestion.title} · {suggestion.priority}</strong><p>{suggestion.detail}</p></div></div>)}</div>}{review.rewritten_project_example && <><strong>Ví dụ cách viết lại</strong><p>{review.rewritten_project_example}</p></>}<small>{review.disclaimer}</small></div>}
-        </> : <div className="ws-review-placeholder"><span aria-hidden="true">▤</span><h2>Gợi ý sẽ hiện ở đây</h2><p>Tải PDF hoặc dán nội dung CV, rồi chọn “Xem gợi ý cải thiện”.</p></div>}
-      </section>
-    </div>
+          {review && <section className="ws-cv-ai-review" aria-labelledby="ws-cv-ai-title">
+            <h3 id="ws-cv-ai-title">Góp ý từ CARIO AI</h3>
+            <p className="ws-cv-ai-summary">{review.summary}</p>
+            {review.strengths.length > 0 && <details className="ws-cv-ai-section"><summary><span>Điểm đang làm tốt</span><span>{review.strengths.length} ý <span aria-hidden="true">⌄</span></span></summary><div className="ws-cv-ai-detail"><ul>{review.strengths.map((strength, index) => <li key={index}>{strength}</li>)}</ul></div></details>}
+            {review.missing_or_unclear.length > 0 && <details className="ws-cv-ai-section"><summary><span>Điểm cần làm rõ</span><span>{review.missing_or_unclear.length} ý <span aria-hidden="true">⌄</span></span></summary><div className="ws-cv-ai-detail"><ul>{review.missing_or_unclear.map((item, index) => <li key={index}>{item}</li>)}</ul></div></details>}
+            {review.suggestions.length > 0 && <details className="ws-cv-ai-section"><summary><span>Đề xuất cải thiện</span><span>{review.suggestions.length} ý <span aria-hidden="true">⌄</span></span></summary><div className="ws-cv-ai-detail"><ol>{review.suggestions.map((suggestion, index) => <li key={`${suggestion.title}-${index}`}><strong>{suggestion.title} · {suggestion.priority}</strong><p>{suggestion.detail}</p></li>)}</ol></div></details>}
+            {review.rewritten_project_example && <details className="ws-cv-ai-section"><summary><span>Ví dụ cách viết lại</span><span aria-hidden="true">⌄</span></summary><div className="ws-cv-ai-detail"><p>{review.rewritten_project_example}</p></div></details>}
+            <small>{review.disclaimer}</small>
+          </section>}
+      </div></>}
+    </dialog>
     <p className="ws-footnote">CARIO kiểm tra cấu trúc và từ khóa trong văn bản. Kết quả này không thay thế góp ý từ cố vấn hoặc nhà tuyển dụng.</p>
   </>;
 }

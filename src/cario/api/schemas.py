@@ -92,3 +92,4 @@ class MentorProfileInput(BaseModel):
     experience: str = Field(min_length=10, max_length=1000)
     achievement: str = Field(min_length=10, max_length=1000)
     bio: str = Field(min_length=10, max_length=500)
+    contact_email: str | None = Field(default=None, max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
