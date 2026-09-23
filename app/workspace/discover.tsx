@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { careers } from "./data";
+import type { Career } from "./data";
 
 type DiscoveryProfile = {
   audience: "student" | "school";
@@ -14,23 +14,24 @@ type DiscoveryProfile = {
 };
 
 type DiscoveryProps = {
+  careers: Career[];
   profile: DiscoveryProfile;
   update: (changes: Partial<DiscoveryProfile>) => void;
 };
 
 const prompts = [
-  { question: "Bạn đang ở giai đoạn nào?", detail: "Mình sẽ điều chỉnh hướng khám phá theo giai đoạn của bạn.", options: ["Học sinh THPT", "Sinh viên"] },
-  { question: "Lĩnh vực nào làm bạn tò mò nhất lúc này?", detail: "Chọn một hướng để bắt đầu. Bạn có thể đổi sau.", options: ["Dữ liệu", "Công nghệ", "Thiết kế", "Truyền thông", "Bảo mật"] },
-  { question: "Bạn nhận thấy điểm mạnh nào ở mình?", detail: "Nghĩ về cách bạn thường làm việc hoặc giải quyết vấn đề.", options: ["Phân tích", "Sáng tạo", "Giao tiếp", "Tổ chức công việc"] },
-  { question: "Điều gì khiến một công việc có ý nghĩa với bạn?", detail: "Chọn điều bạn coi trọng nhất ở thời điểm này.", options: ["Học điều mới", "Tạo ích lợi cho cộng đồng", "Giải quyết vấn đề", "Làm việc cùng người khác"] },
-  { question: "Bạn đã từng dùng những kỹ năng nào?", detail: "Bạn có thể chọn nhiều kỹ năng, rồi xem kết quả.", options: ["Python", "SQL", "Phân tích dữ liệu", "Mạng máy tính", "Nghiên cứu người dùng", "Thiết kế giao diện", "Giao tiếp"] },
+  { question: "Bạn đang ở chặng nào của hành trình?", detail: "CARIO dùng điều này để gợi ý bước thử phù hợp, không để xếp loại bạn.", options: ["Học sinh THPT", "Sinh viên"] },
+  { question: "Bạn muốn hiểu rõ nhóm nghề nào trước?", detail: "Chọn lĩnh vực bạn sẵn lòng thử, không cần là quyết định cuối cùng.", options: ["Dữ liệu", "Công nghệ", "Thiết kế", "Truyền thông", "Bảo mật", "Kinh doanh", "Tài chính", "Giáo dục", "Xã hội", "Kiến trúc", "Vận hành", "Pháp luật", "Môi trường"] },
+  { question: "Khi làm việc cùng người khác, bạn thường đóng góp theo cách nào?", detail: "Chọn điều gần với trải nghiệm của bạn nhất; có thể khám phá lại bất cứ lúc nào.", options: ["Phân tích", "Sáng tạo", "Giao tiếp", "Tổ chức công việc"] },
+  { question: "Bạn muốn một công việc đem lại điều gì?", detail: "Giá trị cá nhân giúp CARIO gợi ý môi trường và trải nghiệm đáng thử.", options: ["Học điều mới", "Tạo ích lợi cho cộng đồng", "Giải quyết vấn đề", "Làm việc cùng người khác"] },
+  { question: "Bạn đã từng thực hành kỹ năng nào?", detail: "Chọn nhiều kỹ năng nếu có. Đây là bằng chứng khởi đầu, không phải điểm số.", options: ["Python", "SQL", "Phân tích dữ liệu", "Mạng máy tính", "Nghiên cứu người dùng", "Thiết kế giao diện", "Giao tiếp"] },
 ] as const;
 
 function normalize(text: string): string {
   return text.toLocaleLowerCase("vi").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").trim();
 }
 
-export default function Discover({ profile, update }: DiscoveryProps) {
+export default function Discover({ careers, profile, update }: DiscoveryProps) {
   const [step, setStep] = useState(profile.discoveryCompleted ? prompts.length : 0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [skills, setSkills] = useState<string[]>([]);

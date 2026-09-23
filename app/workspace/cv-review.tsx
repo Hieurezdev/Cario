@@ -2,16 +2,71 @@
 
 import Link from "next/link";
 import { ChangeEvent, useState } from "react";
-import { careers, type Evidence } from "./data";
+import type { Career, Evidence } from "./data";
 import { extractPdfText } from "./pdf";
 
-export default function CvReview({ evidence }: { evidence: Evidence[] }) {
+type AiReview = {
+  summary: string;
+  strengths: string[];
+  missing_or_unclear: string[];
+  suggestions: { title: string; detail: string; priority: string }[];
+  rewritten_project_example: string | null;
+  disclaimer: string;
+};
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+function apiError(body: unknown, fallback: string): string {
+  if (typeof body === "object" && body && "detail" in body) {
+    const detail = (body as { detail: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) return detail.map((item) => typeof item === "object" && item && "msg" in item ? String(item.msg) : "Dữ liệu gửi lên chưa hợp lệ.").join(" ");
+  }
+  return fallback;
+}
+
+export default function CvReview({ careers, evidence }: { careers: Career[]; evidence: Evidence[] }) {
   const [cv, setCv] = useState("");
   const [target, setTarget] = useState("Kỹ sư dữ liệu");
   const [analyzed, setAnalyzed] = useState(false);
   const [fileName, setFileName] = useState("");
   const [fileError, setFileError] = useState("");
   const [readingFile, setReadingFile] = useState(false);
+  const [review, setReview] = useState<AiReview | null>(null);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewing, setReviewing] = useState(false);
+
+  function clearReview() {
+    setAnalyzed(false);
+    setReview(null);
+    setReviewError("");
+  }
+
+  async function requestReview() {
+    if (!cv.trim()) return;
+    setReviewing(true);
+    setReviewError("");
+    setReview(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/cv/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cv_text: cv,
+          target_role: target,
+          evidence: evidence.map(({ title, skill, source }) => ({ title, skill, source })),
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(apiError(body, "Không thể nhận góp ý AI lúc này."));
+      setReview(body as AiReview);
+      setAnalyzed(true);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Không thể kết nối tới dịch vụ góp ý CV.");
+    } finally {
+      setReviewing(false);
+    }
+  }
 
   async function onPdfSelected(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -20,7 +75,7 @@ export default function CvReview({ evidence }: { evidence: Evidence[] }) {
     setReadingFile(true);
     setFileError("");
     setFileName("");
-    setAnalyzed(false);
+    clearReview();
     try {
       const text = await extractPdfText(file);
       setCv(text);
@@ -55,9 +110,9 @@ export default function CvReview({ evidence }: { evidence: Evidence[] }) {
     <div className="ws-two-col cv-columns">
       <section className="ws-panel">
         <h2>Nội dung CV</h2>
-        <p className="ws-help">PDF được đọc ngay trên thiết bị của bạn. Nội dung không được gửi lên máy chủ.</p>
+        <p className="ws-help">PDF được đọc trên thiết bị. Khi bạn chọn nhận góp ý AI, chỉ nội dung CV và vị trí mục tiêu được gửi tới API CARIO để phân tích.</p>
         <label htmlFor="cv-target">Vị trí bạn muốn ứng tuyển</label>
-        <select id="cv-target" value={target} onChange={(event) => { setTarget(event.target.value); setAnalyzed(false); }}>
+        <select id="cv-target" value={target} onChange={(event) => { setTarget(event.target.value); clearReview(); }}>
           {careers.map((career) => <option key={career.id}>{career.title}</option>)}
         </select>
         <div className="ws-upload-area">
@@ -69,8 +124,9 @@ export default function CvReview({ evidence }: { evidence: Evidence[] }) {
         </div>
         {fileError && <p className="ws-file-error" role="alert">{fileError}</p>}
         <label htmlFor="cv-content">Hoặc dán nội dung CV</label>
-        <textarea id="cv-content" className="ws-cv-textarea" value={cv} onChange={(event) => { setCv(event.target.value); setAnalyzed(false); setFileName(""); }} placeholder="Học vấn, dự án, kỹ năng, kinh nghiệm..." />
-        <button type="button" className="ws-button dark" disabled={!cv.trim() || readingFile} onClick={() => setAnalyzed(true)}>Xem gợi ý cải thiện ↗</button>
+        <textarea id="cv-content" className="ws-cv-textarea" value={cv} onChange={(event) => { setCv(event.target.value); clearReview(); setFileName(""); }} placeholder="Học vấn, dự án, kỹ năng, kinh nghiệm..." />
+        <button type="button" className="ws-button dark" disabled={!cv.trim() || readingFile || reviewing} onClick={requestReview}>{reviewing ? "Đang nhận góp ý AI..." : "Xem gợi ý cải thiện ↗"}</button>
+        {reviewError && <p className="ws-file-error" role="alert">{reviewError}</p>}
       </section>
       <section className="ws-panel ws-review-panel">
         <p className="ws-eyebrow">GỢI Ý CHO {target.toUpperCase()}</p>
@@ -79,6 +135,7 @@ export default function CvReview({ evidence }: { evidence: Evidence[] }) {
           <div className="ws-check-list">{checks.map((check) => <div key={check.label} className={check.found ? "pass" : "needs-work"}><span aria-hidden="true">{check.found ? "✓" : "!"}</span><div><strong>{check.label}</strong><p>{check.found ? "Đã tìm thấy nội dung liên quan." : check.action}</p></div></div>)}</div>
           <div className="ws-role-check"><h3>Đối chiếu với {target}</h3><p>Đã nhắc đến: {presentSkills.join(" · ") || "Chưa có kỹ năng gợi ý nào"}</p><p>Nên xem xét bổ sung: {unmentionedSkills.join(" · ") || "Đã nhắc đến các kỹ năng gợi ý"}</p><small>Việc chưa nhắc đến một kỹ năng trong CV không có nghĩa là bạn chưa có kỹ năng đó.</small></div>
           <div className="ws-review-summary"><strong>{proven.length ? `${proven.length} kỹ năng trong CV có bằng chứng ở hồ sơ` : "Chưa tìm thấy kỹ năng trùng với bằng chứng trong hồ sơ"}</strong><p>{proven.length ? proven.map((item) => item.skill).join(" · ") : "Hãy thêm sản phẩm hoặc dự án để chứng minh kỹ năng đã nêu."}</p><Link className="ws-link" href="/workspace/portfolio">Mở hồ sơ năng lực →</Link></div>
+          {review && <div className="ws-review-summary"><h3>Góp ý từ CARIO AI</h3><p>{review.summary}</p>{review.strengths.length > 0 && <><strong>Điểm đang làm tốt</strong><p>{review.strengths.join(" · ")}</p></>}{review.missing_or_unclear.length > 0 && <><strong>Điểm cần làm rõ</strong><p>{review.missing_or_unclear.join(" · ")}</p></>}{review.suggestions.length > 0 && <div className="ws-check-list">{review.suggestions.map((suggestion, index) => <div className="needs-work" key={`${suggestion.title}-${index}`}><span aria-hidden="true">!</span><div><strong>{suggestion.title} · {suggestion.priority}</strong><p>{suggestion.detail}</p></div></div>)}</div>}{review.rewritten_project_example && <><strong>Ví dụ cách viết lại</strong><p>{review.rewritten_project_example}</p></>}<small>{review.disclaimer}</small></div>}
         </> : <div className="ws-review-placeholder"><span aria-hidden="true">▤</span><h2>Gợi ý sẽ hiện ở đây</h2><p>Tải PDF hoặc dán nội dung CV, rồi chọn “Xem gợi ý cải thiện”.</p></div>}
       </section>
     </div>
