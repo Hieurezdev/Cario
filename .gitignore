@@ -6,3 +6,5 @@ out
 .env
 .codex
 .agents 
+.env
+.venv
