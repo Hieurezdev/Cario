@@ -10,9 +10,9 @@ export type Career = {
   mentor: string;
 };
 
-export type Evidence = { id: string; title: string; skill: string; source: string; reflection: string };
+export type Evidence = { id: string; title: string; skill: string; source: string; reflection: string; artifactUrl?: string; questId?: string; sample?: boolean };
 
-export const sectionSlugs = ["discover", "compare", "quests", "portfolio", "cv", "coach", "connections", "community"] as const;
+export const sectionSlugs = ["discover", "oracle", "compare", "quests", "portfolio", "cv", "coach", "connections", "community"] as const;
 export type SectionSlug = (typeof sectionSlugs)[number];
 
 export const teamMembers = [

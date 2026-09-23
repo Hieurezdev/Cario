@@ -74,7 +74,7 @@ class LoginInput(BaseModel):
 
 class WorkspaceProfile(BaseModel):
     audience: str = Field(default="student", pattern="^(student|school)$")
-    interest: str = Field(default="Dữ liệu", max_length=120)
+    interest: str = Field(default="", max_length=120)
     strength: str = Field(default="", max_length=300)
     value: str = Field(default="", max_length=300)
     currentSkills: list[str] = Field(default_factory=list, max_length=100)
@@ -93,3 +93,20 @@ class MentorProfileInput(BaseModel):
     achievement: str = Field(min_length=10, max_length=1000)
     bio: str = Field(min_length=10, max_length=500)
     contact_email: str | None = Field(default=None, max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+class OracleAnswerInput(BaseModel):
+    question_key: str = Field(min_length=3, max_length=80)
+    option_id: str = Field(pattern="^[A-D]$")
+
+
+class OracleAnswersInput(BaseModel):
+    version: int = Field(ge=1)
+    answers: list[OracleAnswerInput] = Field(default_factory=list, max_length=100)
+
+
+class OracleAnalysis(BaseModel):
+    overview: str
+    observations: list[str] = Field(max_length=3)
+    next_experiments: list[str] = Field(max_length=3)
+    reflection_questions: list[str] = Field(max_length=2)

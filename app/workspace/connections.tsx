@@ -8,6 +8,11 @@ type Mentor = { id: string; user_id: string | null; name: string; title: string;
 type Opportunity = { id: string; title: string; field: string; kind: string; summary: string; tasks: string[]; requirements: string[]; applyUrl: string };
 type ConnectionTab = "jobs" | "mentors";
 
+function MentorConstellation({ mentors }: { mentors: Mentor[] }) {
+  const visible = mentors.slice(0, 3);
+  return <div className="ws-mentor-constellation" aria-hidden="true"><span className="ws-mentor-constellation-orbit" /><span className="ws-mentor-constellation-core">✳</span>{visible.map((mentor, index) => <span className={`ws-mentor-constellation-face face-${index}`} key={mentor.id}>{(mentor.user_id ? mentor.name : mentor.field).charAt(0)}</span>)}<span className="ws-mentor-constellation-caption">Kinh nghiệm được chia sẻ</span></div>;
+}
+
 const sampleMentorEmails: Record<string, string> = {
   "Bảo mật": "security.mentor@example.com",
   "Dữ liệu": "data.mentor@example.com",
@@ -118,16 +123,27 @@ export default function Connections({ interest }: { interest: string }) {
     </section>
     <section id="connections-mentors-panel" className="ws-connection-tab-panel" role="tabpanel" aria-labelledby="connections-mentors-tab" tabIndex={0} hidden={activeTab !== "mentors"}>
       <div className="ws-mentor-join"><div><p className="ws-eyebrow">CHIA SẺ KINH NGHIỆM</p><h2>{myMentor ? "Hồ sơ cố vấn của bạn" : "Bạn muốn trở thành cố vấn?"}</h2><p>Giới thiệu chuyên môn, kinh nghiệm và thành tích để người học biết bạn có thể đồng hành ở đâu.</p></div><button type="button" className="ws-button dark" onClick={() => setShowMentorForm((current) => !current)}>{showMentorForm ? "Đóng biểu mẫu" : myMentor ? "Chỉnh sửa hồ sơ" : "Trở thành cố vấn"}</button></div>
-      {showMentorForm && <form className="ws-panel ws-community-editor" onSubmit={saveMentor}><h2>Thông tin cố vấn</h2><p>Tên hiển thị lấy từ tài khoản CARIO của bạn.</p><label>Vị trí chuyên môn<input required minLength={3} value={mentorTitle} onChange={(event) => setMentorTitle(event.target.value)} placeholder="Ví dụ: Data Engineer" /></label><label>Lĩnh vực<input required minLength={2} value={mentorField} onChange={(event) => setMentorField(event.target.value)} /></label><label>Kỹ năng, ngăn cách bằng dấu phẩy<input required value={mentorSkills} onChange={(event) => setMentorSkills(event.target.value)} placeholder="SQL, Python, phân tích dữ liệu" /></label><label>Kinh nghiệm<textarea required minLength={10} value={mentorExperience} onChange={(event) => setMentorExperience(event.target.value)} /></label><label>Thành tích<textarea required minLength={10} value={mentorAchievement} onChange={(event) => setMentorAchievement(event.target.value)} /></label><label>Giới thiệu ngắn<textarea required minLength={10} value={mentorBio} onChange={(event) => setMentorBio(event.target.value)} /></label><label>Email liên hệ<input type="email" maxLength={254} value={mentorContactEmail} onChange={(event) => setMentorContactEmail(event.target.value)} placeholder="tenban@example.com" /></label><p className="ws-mentor-contact-note">Email này sẽ hiển thị trong hồ sơ cố vấn nếu bạn điền.</p><button className="ws-button dark" disabled={savingMentor}>{savingMentor ? "Đang lưu…" : "Lưu hồ sơ cố vấn"}</button></form>}
+      {showMentorForm && <form className="ws-panel ws-community-editor" onSubmit={saveMentor}>
+        <h2>Thông tin cố vấn</h2><p>Tên hiển thị lấy từ tài khoản CARIO của bạn.</p>
+        <label>Vị trí chuyên môn<input name="mentor-title" autoComplete="off" required minLength={3} value={mentorTitle} onChange={(event) => setMentorTitle(event.target.value)} placeholder="Ví dụ: Data Engineer…" /></label>
+        <label>Lĩnh vực<input name="mentor-field" autoComplete="off" required minLength={2} value={mentorField} onChange={(event) => setMentorField(event.target.value)} /></label>
+        <label>Kỹ năng, ngăn cách bằng dấu phẩy<input name="mentor-skills" autoComplete="off" required value={mentorSkills} onChange={(event) => setMentorSkills(event.target.value)} placeholder="SQL, Python, phân tích dữ liệu…" /></label>
+        <label>Kinh nghiệm<textarea name="mentor-experience" autoComplete="off" required minLength={10} value={mentorExperience} onChange={(event) => setMentorExperience(event.target.value)} /></label>
+        <label>Thành tích<textarea name="mentor-achievement" autoComplete="off" required minLength={10} value={mentorAchievement} onChange={(event) => setMentorAchievement(event.target.value)} /></label>
+        <label>Giới thiệu ngắn<textarea name="mentor-bio" autoComplete="off" required minLength={10} value={mentorBio} onChange={(event) => setMentorBio(event.target.value)} /></label>
+        <label>Email liên hệ<input name="mentor-email" autoComplete="email" type="email" maxLength={254} value={mentorContactEmail} onChange={(event) => setMentorContactEmail(event.target.value)} placeholder="tenban@example.com…" spellCheck={false} /></label>
+        <p className="ws-mentor-contact-note">Email này sẽ hiển thị trong hồ sơ cố vấn nếu bạn điền.</p>
+        <button className="ws-button dark" disabled={savingMentor}>{savingMentor ? "Đang lưu…" : "Lưu hồ sơ cố vấn"}</button>
+      </form>}
       <div className="ws-connection-layout">
         <div className="ws-connection-availability">
-          <div className="ws-mentor-preview"><div className="ws-mentor-preview-mark">✳</div><div><p className="ws-eyebrow">MENTOR DESK / {field}</p><h2>Người đi trước trong lĩnh vực bạn chọn.</h2><p>Xem thế mạnh và kênh liên hệ của cố vấn để chuẩn bị câu hỏi cụ thể.</p></div><Link className="ws-button dark" href="/workspace/coach">Soạn câu hỏi với Coach</Link></div>
+          <div className="ws-mentor-preview"><div className="ws-mentor-preview-copy"><p className="ws-eyebrow">MENTOR DESK / {field}</p><h2>Người đi trước trong lĩnh vực bạn chọn.</h2><p>Xem thế mạnh và kênh liên hệ của cố vấn để chuẩn bị câu hỏi cụ thể.</p><Link className="ws-button dark" href="/workspace/coach">Soạn câu hỏi với Coach</Link></div><MentorConstellation mentors={mentors} /></div>
           {loading && <p role="status">Đang tải cố vấn…</p>}
           {error && <p className="ws-file-error" role="alert">{error}</p>}
           {!loading && !error && mentors.length === 0 && <div className="ws-empty"><h3>Chưa có cố vấn ở lĩnh vực này</h3><p>Thử chọn “Tất cả” hoặc một lĩnh vực khác. Hướng bạn đang quan tâm: {interest}.</p></div>}
           {!loading && !error && mentors.length > 0 && <div className="ws-card-grid ws-mentor-grid">{mentors.map((mentor) => {
             const name = mentor.user_id ? mentor.name : `Cố vấn ${mentor.field}`;
-            return <article className="ws-mentor-card" key={mentor.id}><div className="ws-mentor-avatar">{name.charAt(0)}</div><h3>{name}</h3><small>{mentor.title} · {mentor.field}</small><p>{mentor.bio}</p><div className="ws-tag-row">{mentor.skills.map((skill) => <span key={skill}>{skill}</span>)}</div><button className="ws-connection-card-action" type="button" onClick={() => setSelectedMentor(mentor)}>Xem chi tiết hồ sơ <span aria-hidden="true">↗</span></button></article>;
+            return <article className="ws-mentor-card" key={mentor.id}><div className="ws-mentor-avatar" aria-hidden="true">{(mentor.user_id ? name : mentor.field).charAt(0)}</div><h3>{name}</h3><small>{mentor.title} · {mentor.field}</small><p>{mentor.bio}</p><div className="ws-tag-row">{mentor.skills.map((skill) => <span key={skill}>{skill}</span>)}</div><button className="ws-connection-card-action" type="button" onClick={() => setSelectedMentor(mentor)}>Xem chi tiết hồ sơ <span aria-hidden="true">↗</span></button></article>;
           })}</div>}
         </div>
         <aside className="ws-connection-side"><div className="ws-panel"><p className="ws-eyebrow">TRƯỚC KHI KẾT NỐI</p><h2>Chuẩn bị một câu chuyện cụ thể</h2><ol><li>Chọn hướng nghề bạn muốn hỏi.</li><li>Ghi lại một dự án hoặc việc đã thử.</li><li>Viết câu hỏi mà bạn cần người đi trước góp ý.</li></ol><Link className="ws-link" href="/workspace/portfolio">Mở hồ sơ năng lực →</Link></div><div className="ws-team-panel"><p className="ws-eyebrow">NHÓM PHÁT TRIỂN CARIO</p><h3>CARENOVA · PTIT Hà Nội</h3><ul>{teamMembers.map((name) => <li key={name}>{name}</li>)}</ul></div></aside>

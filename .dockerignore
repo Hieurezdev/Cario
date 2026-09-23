@@ -1,0 +1,16 @@
+.git
+.codex
+.agents
+.next*
+node_modules
+.venv
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+*.tsbuildinfo
+tests
+out
+*.log
+
