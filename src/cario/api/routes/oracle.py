@@ -93,17 +93,17 @@ def create_analysis(request: Request, user: dict = Depends(current_user)) -> dic
         raise HTTPException(404, "Không tìm thấy bài Oracle đã hoàn thành.")
     if attempt.get("analysis"):
         return {"analysis": attempt["analysis"], "cached": True}
-    if not settings.google_api_key:
-        raise HTTPException(503, "Chưa cấu hình GOOGLE_API_KEY cho phân tích AI.")
+    if not settings.qwen_base_url or not settings.qwen_api_key:
+        raise HTTPException(503, "Chưa cấu hình Qwen proxy cho phân tích AI.")
     if not repo.claim_analysis(user["_id"], attempt_id):
         raise HTTPException(409, "Oracle đang phân tích bài này. Hãy đợi một lát rồi tải lại kết quả.")
     try:
         analysis = analyze_oracle(attempt, questions(request)).model_dump()
-        repo.save_analysis(user["_id"], attempt_id, analysis, settings.gemini_model)
+        repo.save_analysis(user["_id"], attempt_id, analysis, settings.qwen_model)
         return {"analysis": analysis, "cached": False}
     except Exception as error:
         repo.release_analysis(user["_id"], attempt_id)
         logger.exception("Oracle AI analysis failed")
         if getattr(error, "code", None) == 429:
-            raise HTTPException(429, "Gemini đang giới hạn lượt gọi. Hãy thử lại sau.") from error
+            raise HTTPException(429, "Qwen proxy đang giới hạn lượt gọi. Hãy thử lại sau.") from error
         raise HTTPException(502, "Chưa thể tạo nhận xét AI. Điểm Oracle đã được lưu; hãy thử lại sau.") from error

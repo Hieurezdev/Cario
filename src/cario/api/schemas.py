@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class EvidenceInput(BaseModel):
@@ -28,11 +30,17 @@ class CvReviewResponse(BaseModel):
     disclaimer: str
 
 
+class CoachTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
 class CoachRequest(BaseModel):
     question: str = Field(min_length=2, max_length=2_000)
     interest: str = Field(max_length=120)
     goal: str = Field(max_length=300)
     evidence_count: int = Field(ge=0, le=10_000)
+    history: list[CoachTurn] = Field(default_factory=list, max_length=12)
 
 
 class CoachResponse(BaseModel):
@@ -110,3 +118,13 @@ class OracleAnalysis(BaseModel):
     observations: list[str] = Field(max_length=3)
     next_experiments: list[str] = Field(max_length=3)
     reflection_questions: list[str] = Field(max_length=2)
+
+    @field_validator("observations", "next_experiments", mode="before")
+    @classmethod
+    def keep_three_items(cls, value: object) -> object:
+        return value[:3] if isinstance(value, list) else value
+
+    @field_validator("reflection_questions", mode="before")
+    @classmethod
+    def keep_two_questions(cls, value: object) -> object:
+        return value[:2] if isinstance(value, list) else value

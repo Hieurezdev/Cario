@@ -21,12 +21,12 @@ NEXT_DIST_DIR=.next-dev-3001 npm run dev -- --port 3001
 
 ## Run the API
 
-The FastAPI backend connects to MongoDB for accounts, profiles, careers, mentors, and communities. Gemini powers CV review and Career Coach.
+The FastAPI backend connects to MongoDB for accounts, profiles, careers, mentors, and communities. The configured Qwen proxy powers CV review, Oracle analysis, and Career Coach.
 
 ```bash
 uv sync
 cp .env.example .env
-# Set GOOGLE_API_KEY, MONGODB_URL and AUTH_SECRET in .env
+# Set QWEN_BASE_URL, QWEN_API_KEY, MONGODB_URL and AUTH_SECRET in .env
 uv run uvicorn cario.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -34,7 +34,7 @@ The frontend calls `http://localhost:8000` by default. Set `NEXT_PUBLIC_API_BASE
 
 ## Docker
 
-Set `MONGODB_URL`, `GOOGLE_API_KEY`, and a long random `AUTH_SECRET` in `.env` first. Compose connects to your existing MongoDB; it does not start or overwrite a database. Only the API container receives `.env` (the Google key is never copied into the web image).
+Set `MONGODB_URL`, `QWEN_BASE_URL`, `QWEN_API_KEY`, and a long random `AUTH_SECRET` in `.env` first. Compose connects to your existing MongoDB; it does not start or overwrite a database. Only the API container receives `.env` (the proxy key is never copied into the web image). Use an HTTPS proxy URL outside a trusted network: the supplied HTTP endpoint sends the bearer key without transport encryption.
 
 ```bash
 docker compose build
@@ -78,9 +78,9 @@ uv run python -m scripts.migrate_oracle_v2
 
 - The guided discovery conversation records the user's stage, interests, strengths, values, and self-reported skills. Its skill checklist comes from careers in MongoDB, with search across fields. Career comparison ranks suggestions using declared skills, actual evidence, and interests; demo evidence is excluded from matching.
 - Career Quest filters, details, and save actions are interactive. Submitting an HTTP(S) link to the work plus a reflection marks the quest complete and saves the submission to Career Identity. Completion is self-reported, not reviewed or verified. Deleting its evidence reopens the quest.
-- The CV screen reads an uploaded PDF locally or accepts pasted text; its review is sent to Gemini through FastAPI.
-- Oracle reads 18 versioned fictional situations from `Cario.oracle_question`. Answers are saved as a draft on the user, then scored by a transparent six-dimension rubric. Scores are calibrated for how often each dimension appears in the question bank, and integer percentages add to 100. Completed attempts go to `Cario.oracle_attempt`, and the latest vector appears in the user profile. The optional Gemini reading is saved on both the attempt and latest profile; repeated requests return the saved text. These are exploration signals, not a validated psychometric assessment.
-- Career Coach sends questions and profile context to Gemini through FastAPI.
+- The CV screen reads an uploaded PDF locally or accepts pasted text; its review is sent to the Qwen proxy through FastAPI.
+- Oracle reads 18 versioned fictional situations from `Cario.oracle_question`. Answers are saved as a draft on the user, then scored by a transparent six-dimension rubric. Scores are calibrated for how often each dimension appears in the question bank, and integer percentages add to 100. Completed attempts go to `Cario.oracle_attempt`, and the latest vector appears in the user profile. The optional Qwen reading is saved on both the attempt and latest profile; repeated requests return the saved text. Existing cached Gemini readings are preserved. These are exploration signals, not a validated psychometric assessment.
+- Career Coach sends recent conversation turns and profile context to the Qwen proxy through FastAPI.
 - Accounts and workspace profiles are stored in MongoDB. Browser storage is a local fallback when profile sync is unavailable.
 - Communities, posts and comments are separate MongoDB collections. Creating and editing content requires login; edit/delete permissions are limited to owners or authors.
 - Mentors are loaded from MongoDB. Logged-in users can create or edit their own mentor profile.

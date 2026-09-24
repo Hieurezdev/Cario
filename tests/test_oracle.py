@@ -4,6 +4,7 @@ import unittest
 
 from cario.oracle.questions import DIMENSIONS, QUESTION_BANK
 from cario.oracle.scoring import InvalidAnswers, score_answers, validate_answers
+from cario.api.schemas import OracleAnalysis
 
 
 def answers_for(option_id: str) -> list[dict[str, str]]:
@@ -11,6 +12,17 @@ def answers_for(option_id: str) -> list[dict[str, str]]:
 
 
 class OracleScoringTests(unittest.TestCase):
+    def test_ai_analysis_accepts_extra_list_items_without_losing_result(self) -> None:
+        analysis = OracleAnalysis.model_validate({
+            "overview": "Một cách đọc từ lựa chọn của bạn.",
+            "observations": ["Một", "Hai", "Ba", "Bốn"],
+            "next_experiments": ["Một", "Hai", "Ba", "Bốn"],
+            "reflection_questions": ["Một?", "Hai?", "Ba?"],
+        })
+        self.assertEqual(analysis.observations, ["Một", "Hai", "Ba"])
+        self.assertEqual(analysis.next_experiments, ["Một", "Hai", "Ba"])
+        self.assertEqual(analysis.reflection_questions, ["Một?", "Hai?"])
+
     def test_bank_is_balanced_and_complete(self) -> None:
         self.assertEqual(len(QUESTION_BANK), 18)
         self.assertEqual(len({question["key"] for question in QUESTION_BANK}), len(QUESTION_BANK))
